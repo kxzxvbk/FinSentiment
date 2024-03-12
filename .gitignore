@@ -1403,7 +1403,6 @@ htmlcov
 /name.txt
 /summary_log
 policy_*
-/data
 .vscode
 formatted_*
 **/exp
