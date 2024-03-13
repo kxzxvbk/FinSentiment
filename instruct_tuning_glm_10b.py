@@ -60,7 +60,7 @@ class SentimentDataset(Dataset):
         input_ids, labels = create_inputs_and_labels(
             tokenizer,
             question=item_data['sentence']+"请给出上述文本的情感分类（正面、负面或中立）：",
-            answer=label2zh(item_data['answer'])
+            answer=label2zh(item_data['label'])
         )
 
         return {
@@ -182,22 +182,24 @@ if __name__ == '__main__':
     # Initialize base model.
     base_model = '/mnt/nfs/whl/LLM/glm-10b-chinese'
 
-    # Initialize base model.
+    # Prepare tokenizer.
     tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
+    # Prepare dataset.
+    train_dataset, test_dataset = prepare_dataset(tokenizer)
+    # Prepare model.
     print('Initializing model ... This may take quite a few minutes.')
     model = AutoModel.from_pretrained(base_model, trust_remote_code=True, revision='main', torch_dtype=torch.float16)
 
-    # Initialize lora model.
+    # Prepare lora model.
     peft_config = LoraConfig(
         target_modules=['query_key_value'],
         task_type=TaskType.CAUSAL_LM, inference_mode=False, r=1, lora_alpha=2, lora_dropout=0.1
     )
     model = get_peft_model(model, peft_config)
+
+    # Log some results.
     print(model)
     model.print_trainable_parameters()
-
-    # Prepare dataset.
-    train_dataset, test_dataset = prepare_dataset(tokenizer)
 
     # Training arguments.
     training_args = TrainingArguments(
