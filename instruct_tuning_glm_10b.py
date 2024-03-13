@@ -166,6 +166,10 @@ def preprocess_logits_for_metrics(logits, labels):
 def prepare_dataset(tokenizer):
     with open(f'./data/FinancialPhraseBank-v1.0/dataset_en_split50.pkl', 'rb') as f:
         data = pickle.load(f)
+    collated_data = []
+    for i in range(len(data['sentence'])):
+        collated_data.append({'sentence': data['sentence'][i], 'label': data['label'][i]})
+    data = collated_data
     random.shuffle(data)
     eval_num = len(data) * 0.1
     train_data = data[:-eval_num]
