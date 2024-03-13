@@ -180,14 +180,14 @@ if __name__ == '__main__':
 
     # Initialize base model.
     tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
-    model = AutoModel.from_pretrained(base_model, trust_remote_code=True, revision='main', device_map='auto',
-                                             torch_dtype=torch.float16, load_in_8bit=True)
+    print('Initializing model ... This may take quite a few minutes.')
+    model = AutoModel.from_pretrained(base_model, trust_remote_code=True, revision='main', torch_dtype=torch.float16)
 
     # Initialize lora model.
     peft_config = LoraConfig(
+        target_modules=['query_key_value'],
         task_type=TaskType.CAUSAL_LM, inference_mode=False, r=1, lora_alpha=2, lora_dropout=0.1
     )
-    model = prepare_model_for_int8_training(model)
     model = get_peft_model(model, peft_config)
     print(model)
     model.print_trainable_parameters()
