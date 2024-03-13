@@ -1,12 +1,17 @@
-import torch
-import evaluate
-from transformers import TrainingArguments, Trainer, AutoTokenizer, AutoModel
-from peft import get_peft_model, LoraConfig, TaskType, prepare_model_for_int8_training, PeftModel
 import pickle
 import random
-from torch.utils.data import Dataset
-from transformers import TrainerCallback
+from typing import Tuple, Dict
 
+import torch
+import evaluate
+from torch.utils.data import Dataset
+from transformers import TrainingArguments, Trainer, TrainerCallback
+from modeling_glm import GLMForConditionalGeneration
+from tokenization_glm import GLMChineseTokenizer
+from peft import get_peft_model, LoraConfig, TaskType, prepare_model_for_int8_training, PeftModel
+
+
+# Set the random seed.
 random.seed(0)
 
 
@@ -59,7 +64,7 @@ class SentimentDataset(Dataset):
         tokenizer = self.tokenizer
         input_ids, labels = create_inputs_and_labels(
             tokenizer,
-            question=item_data['sentence']+"请给出上述文本的情感分类（正面、负面或中立）：",
+            question=item_data['sentence']+"上述文本的情感分类为（正面、负面或中立）：",
             answer=label2zh(item_data['label'])
         )
 
@@ -136,7 +141,7 @@ def _compute_base_metric(pred_str, label_str, prefix):
     return res_dict
 
 
-def compute_metrics(pred):
+def compute_metrics(pred) -> Dict:
     labels_ids = pred.label_ids[..., 1:]
     pred_ids = pred.predictions[0][..., :-1]
     for id, pred in enumerate(pred_ids):
@@ -153,7 +158,7 @@ def compute_metrics(pred):
     return res_dict
 
 
-def preprocess_logits_for_metrics(logits, labels):
+def preprocess_logits_for_metrics(logits: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Original Trainer may have a memory leak.
     This is a workaround to avoid storing too many tensors that are not needed.
@@ -163,7 +168,8 @@ def preprocess_logits_for_metrics(logits, labels):
     return pred_ids, labels
 
 
-def prepare_dataset(tokenizer):
+def prepare_dataset(tokenizer: AutoTokenizer) -> Tuple[SentimentDataset, SentimentDataset]:
+    # Prepare the train dataset and test dataset randomly.
     with open(f'./data/FinancialPhraseBank-v1.0/dataset_en_split50.pkl', 'rb') as f:
         data = pickle.load(f)
     collated_data = []
@@ -171,7 +177,7 @@ def prepare_dataset(tokenizer):
         collated_data.append({'sentence': data['sentence'][i], 'label': data['label'][i]})
     data = collated_data
     random.shuffle(data)
-    eval_num = len(data) * 0.1
+    eval_num = int(len(data) * 0.1)
     train_data = data[:-eval_num]
     test_data = data[-eval_num:]
 
@@ -179,32 +185,33 @@ def prepare_dataset(tokenizer):
 
 
 if __name__ == '__main__':
-    # Initialize base model.
+    # Specify your base model path.
     base_model = '/mnt/nfs/whl/LLM/glm-10b-chinese'
 
     # Prepare tokenizer.
-    tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
+    tokenizer = GLMChineseTokenizer.from_pretrained(base_model)
     # Prepare dataset.
     train_dataset, test_dataset = prepare_dataset(tokenizer)
     # Prepare model.
     print('Initializing model ... This may take quite a few minutes.')
-    model = AutoModel.from_pretrained(base_model, trust_remote_code=True, revision='main', torch_dtype=torch.float16)
+    model = GLMForConditionalGeneration.from_pretrained(base_model, revision='main', torch_dtype=torch.float16)
 
     # Prepare lora model.
     peft_config = LoraConfig(
         target_modules=['query_key_value'],
         task_type=TaskType.CAUSAL_LM, inference_mode=False, r=1, lora_alpha=2, lora_dropout=0.1
     )
-    model = get_peft_model(model, peft_config)
+    model = get_peft_model(model, peft_config).cuda()
 
     # Log some results.
     print(model)
+    print(f'Current model device: {model.device}.')
     model.print_trainable_parameters()
 
     # Training arguments.
     training_args = TrainingArguments(
         output_dir=f'./instruct_tuning_10b',
-        num_train_epochs=10,
+        num_train_epochs=3,
         evaluation_strategy="steps",
         eval_steps=400,
         save_strategy="steps",
@@ -223,6 +230,8 @@ if __name__ == '__main__':
         gradient_accumulation_steps=2,
         warmup_steps=3000,
     )
+
+    # Prepare the trainer.
     trainer = ModifiedTrainer(
         model=model,
         data_collator=collate_fn,
