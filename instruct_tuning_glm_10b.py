@@ -7,7 +7,7 @@ import evaluate
 from torch.utils.data import Dataset
 from transformers import TrainingArguments, Trainer, TrainerCallback
 from modeling_glm import GLMForConditionalGeneration
-from tokenization_glm import GLMChineseTokenizer
+from tokenization_glm import GLMTokenizer
 from peft import get_peft_model, LoraConfig, TaskType, prepare_model_for_int8_training, PeftModel
 
 
@@ -81,12 +81,9 @@ def collate_fn(batch):
     # Get each sequence and pad it
     sequences = [x['input_ids'] for x in sorted_batch]
     sequences_padded = torch.nn.utils.rnn.pad_sequence(sequences, batch_first=True)
-    # Also need to store the length of each sequence
-    # This is later needed in order to unpad the sequences
-    lengths = torch.LongTensor([len(x) for x in sequences])
     # Don't forget to grab the labels of the *sorted* batch
     labels = [x['labels'] for x in sorted_batch]
-    labels_padded = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True)
+    labels_padded = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True, padding_value=-100)
 
     return {
         'input_ids': sequences_padded,
@@ -168,9 +165,9 @@ def preprocess_logits_for_metrics(logits: torch.Tensor, labels: torch.Tensor) ->
     return pred_ids, labels
 
 
-def prepare_dataset(tokenizer: AutoTokenizer) -> Tuple[SentimentDataset, SentimentDataset]:
+def prepare_dataset(tokenizer: GLMTokenizer) -> Tuple[SentimentDataset, SentimentDataset]:
     # Prepare the train dataset and test dataset randomly.
-    with open(f'./data/FinancialPhraseBank-v1.0/dataset_en_split50.pkl', 'rb') as f:
+    with open(f'./data/FinancialPhraseBank-v1.0/dataset_zh_split50.pkl', 'rb') as f:
         data = pickle.load(f)
     collated_data = []
     for i in range(len(data['sentence'])):
@@ -189,7 +186,7 @@ if __name__ == '__main__':
     base_model = '/mnt/nfs/whl/LLM/glm-10b-chinese'
 
     # Prepare tokenizer.
-    tokenizer = GLMChineseTokenizer.from_pretrained(base_model)
+    tokenizer = GLMTokenizer.from_pretrained(base_model)
     # Prepare dataset.
     train_dataset, test_dataset = prepare_dataset(tokenizer)
     # Prepare model.
@@ -211,7 +208,7 @@ if __name__ == '__main__':
     # Training arguments.
     training_args = TrainingArguments(
         output_dir=f'./instruct_tuning_10b',
-        num_train_epochs=3,
+        num_train_epochs=1.5,
         evaluation_strategy="steps",
         eval_steps=400,
         save_strategy="steps",
@@ -219,16 +216,16 @@ if __name__ == '__main__':
         save_total_limit=2,
         report_to=None,
         remove_unused_columns=False,
-        per_device_train_batch_size=4,
-        per_device_eval_batch_size=8,
+        per_device_train_batch_size=6,
+        per_device_eval_batch_size=16,
         group_by_length=False,
         dataloader_pin_memory=False,
         warmup_ratio=0.1,
         weight_decay=0.01,
         bf16=True,
         tf32=True,
-        gradient_accumulation_steps=2,
-        warmup_steps=3000,
+        learning_rate=5e-5,
+        warmup_steps=300,
     )
 
     # Prepare the trainer.
@@ -245,3 +242,8 @@ if __name__ == '__main__':
     # Resume from the checkpoint
     trainer.add_callback(EvaluateFirstStepCallback())
     trainer.train()
+    # Save the final model.
+    torch.save(model.state_dict(), './instruct_tuning_10b/final.pth.tar')
+    # Final testing.
+    print('Final evaling...')
+    trainer.evaluate(test_dataset)

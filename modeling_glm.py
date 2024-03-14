@@ -778,7 +778,7 @@ class GLMModel(GLMPreTrainedModel):
             block_position_ids = torch.zeros(input_shape[-1], dtype=torch.long, device=device)
             position_ids = torch.stack((position_ids, block_position_ids), dim=0).unsqueeze(0)
         if attention_mask is None:
-            attention_mask = torch.zeros(batch_size)
+            attention_mask = torch.zeros(batch_size, device=device)
         # Transformer.
         transformer_output = self.transformer(embeddings, position_ids, attention_mask, mems)
         last_hidden_states, mems = transformer_output
@@ -904,7 +904,7 @@ class GLMForConditionalGeneration(GLMPreTrainedModel):
         loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss(ignore_index=-100)
-            loss = loss_fct(lm_logits.view(-1, lm_logits.size(-1)), labels.view(-1))
+            loss = loss_fct(lm_logits.view(-1, lm_logits.size(-1))[:, :-1, :], labels.view(-1)[:, 1:, :])
         return ModelOutput(
             loss=loss,
             logits=lm_logits,
