@@ -208,7 +208,7 @@ if __name__ == '__main__':
     # Training arguments.
     training_args = TrainingArguments(
         output_dir=f'./instruct_tuning_10b',
-        num_train_epochs=1.5,
+        num_train_epochs=1,
         evaluation_strategy="steps",
         eval_steps=400,
         save_strategy="steps",
