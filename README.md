@@ -14,8 +14,8 @@ This is a repository for using Large Language Models (LLMs) to analysis Chinese 
 [NEWS CONTENT] 请给出上述文本的情感分类（正面、负面或中立）：[SENTIMENT]
 ```
 
-- The fine-tuned model can achieve ~87% prediction accuracy on the validation dataset.
-- All the process is done on a single A100. No distributed training are supported yet (since the training process is super fast).
+- The fine-tuned model can achieve ~88% prediction accuracy on the validation dataset.
+- All the process is done on a single A100. No distributed training are supported yet ,since the training process is fast (~20 min).
 
 ## Quick Start
 
@@ -32,7 +32,7 @@ This is a repository for using Large Language Models (LLMs) to analysis Chinese 
 ### Instruct Tuning
 
 - We perform instruct tuning on this dataset.
-- We use LoRA (r=1, alpha=2) for efficient fine-tuning.
+- We use Low-Rank-Adaptation (LoRA) for efficient fine-tuning.
 - We use ``transformers `` library to perform all the processes.
 - Detailed hyper-parameters are listed in ``instruct_tuning_glm_10b.py``
 - To run your own instruct tuning, run:
@@ -42,6 +42,18 @@ python instruct_tuning_glm_10b.py
 ```
 
 **Note:** You should download the GLM model from huggingface hub first, and specify the download path in this script before fine-tuning.
+
+**Hyper-parameter Tuning Experiments:**
+
+| Method                                        | Validation Accuracy |
+| --------------------------------------------- | ------------------- |
+| target_module="query_key_value", r=1, alpha=2 | 87.4%               |
+| target_module="query_key_value", r=2, alpha=4 | 88.6%               |
+| target_module="query_key_value", r=4, alpha=8 | 86.8%               |
+| target_module="dense", r=1, alpha=2           | 85.9%               |
+| target_module="dense", r=4, alpha=8           | 88.2%               |
+
+
 
 ### Inference
 

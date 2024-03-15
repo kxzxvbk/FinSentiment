@@ -38,7 +38,7 @@ if __name__ == '__main__':
     # Prepare lora model.
     peft_config = LoraConfig(
         target_modules=['query_key_value'],
-        task_type=TaskType.CAUSAL_LM, inference_mode=False, r=1, lora_alpha=2, lora_dropout=0.1
+        task_type=TaskType.CAUSAL_LM, inference_mode=False, r=2, lora_alpha=4, lora_dropout=0.1
     )
     model = get_peft_model(model, peft_config).cuda()
 
