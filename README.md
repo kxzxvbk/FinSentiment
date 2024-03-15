@@ -19,6 +19,10 @@ This is a repository for using Large Language Models (LLMs) to analysis Chinese 
 
 ## Quick Start
 
+### Install
+
+Use ``pip install -r requirements.txt`` .
+
 ### Dataset Inspection
 
 - The full dataset in stored in ``data/FinancialPhraseBank-v1.0`` . All the raw dataset files, preprocessing python scripts and final dataset files are included in this directory.
@@ -45,15 +49,13 @@ python instruct_tuning_glm_10b.py
 
 **Hyper-parameter Tuning Experiments:**
 
-| Method                                        | Validation Accuracy |
-| --------------------------------------------- | ------------------- |
-| target_module="query_key_value", r=1, alpha=2 | 87.4%               |
-| target_module="query_key_value", r=2, alpha=4 | 88.6%               |
-| target_module="query_key_value", r=4, alpha=8 | 86.8%               |
-| target_module="dense", r=1, alpha=2           | 85.9%               |
-| target_module="dense", r=4, alpha=8           | 88.2%               |
-
-
+| Method                                            | Validation Accuracy |
+| ------------------------------------------------- | ------------------- |
+| target_module="query_key_value", r=1, alpha=2     | 87.4%               |
+| **target_module="query_key_value", r=2, alpha=4** | **88.6%**           |
+| target_module="query_key_value", r=4, alpha=8     | 86.8%               |
+| target_module="dense", r=1, alpha=2               | 85.9%               |
+| target_module="dense", r=4, alpha=8               | 88.2%               |
 
 ### Inference
 
@@ -63,7 +65,14 @@ python instruct_tuning_glm_10b.py
 python inference_glm_10b.py
 ```
 
+- Or if you want to use CPU to inference, run:
+
+```
+python inference_glm_10b.py --cpu
+```
+
 ## Citation
+
 ```latex
 @misc{FinSentiment,
     title={Chinese Financial Sentiment Analysis},
