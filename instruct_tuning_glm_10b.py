@@ -6,10 +6,9 @@ import torch
 import evaluate
 from torch.utils.data import Dataset
 from transformers import TrainingArguments, Trainer, TrainerCallback
-from modeling_glm import GLMForConditionalGeneration
-from tokenization_glm import GLMTokenizer
-from peft import get_peft_model, LoraConfig, TaskType, prepare_model_for_int8_training, PeftModel
-
+from glm_model.modeling_glm import GLMForConditionalGeneration
+from glm_model.tokenization_glm import GLMTokenizer
+from peft import get_peft_model, LoraConfig, TaskType
 
 # Set the random seed.
 random.seed(0)
@@ -208,7 +207,7 @@ if __name__ == '__main__':
     # Training arguments.
     training_args = TrainingArguments(
         output_dir=f'./instruct_tuning_10b',
-        num_train_epochs=1,
+        num_train_epochs=10,
         evaluation_strategy="steps",
         eval_steps=400,
         save_strategy="steps",

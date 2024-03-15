@@ -36,7 +36,7 @@ from transformers.modeling_outputs import (
 from transformers.modeling_utils import (
     PreTrainedModel,
 )
-from configuration_glm import GLMConfig
+from glm_model.configuration_glm import GLMConfig
 from torch.nn.parameter import Parameter
 
 _CHECKPOINT_FOR_DOC = "shunxing1234/GLM"

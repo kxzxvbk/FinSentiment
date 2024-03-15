@@ -1,7 +1,7 @@
 import torch
-from modeling_glm import GLMForConditionalGeneration
-from tokenization_glm import GLMTokenizer
-from peft import get_peft_model, LoraConfig, TaskType, prepare_model_for_int8_training, PeftModel
+from glm_model.modeling_glm import GLMForConditionalGeneration
+from glm_model.tokenization_glm import GLMTokenizer
+from peft import get_peft_model, LoraConfig, TaskType
 
 
 def generate_response(query):
