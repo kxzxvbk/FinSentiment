@@ -65,7 +65,7 @@ python instruct_tuning_glm_10b.py
 python inference_glm_10b.py
 ```
 
-- Or if you want to use CPU to inference, run:
+- Or if you want to use CPU to inference, run (extremely slow):
 
 ```
 python inference_glm_10b.py --cpu

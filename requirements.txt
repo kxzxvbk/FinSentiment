@@ -6,4 +6,5 @@ peft==0.6.2
 sentencepiec==0.1.99
 wandb==0.16.4
 rouge-score
+pandas
 scipy==1.10.1
