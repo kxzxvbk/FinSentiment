@@ -57,18 +57,25 @@ python instruct_tuning_glm_10b.py
 | target_module="dense", r=1, alpha=2               | 85.9%               |
 | target_module="dense", r=4, alpha=8               | 88.2%               |
 
-### Inference
+### Interact
 
-- To interact with the pretrained model, run:
+- To interact with the pretrained model as a demonstration, run:
 
 ```
-python inference_glm_10b.py
+python interact_glm_10b.py
 ```
 
 - Or if you want to use CPU to inference, run (extremely slow):
 
 ```
-python inference_glm_10b.py --cpu
+python interact_glm_10b.py --cpu
+```
+
+### Inference
+
+- To use the pretrained model to evaluate given dataset, run:
+```
+python inference_glm_10b.py
 ```
 
 ## Citation
@@ -82,4 +89,3 @@ python inference_glm_10b.py --cpu
     year={2024},
 }
 ```
-

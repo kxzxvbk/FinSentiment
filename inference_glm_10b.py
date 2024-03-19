@@ -9,15 +9,47 @@ from glm_model.tokenization_glm import GLMTokenizer
 from peft import get_peft_model, LoraConfig, TaskType
 
 
-def pad_sequence(sequences: List[torch.Tensor], batch_first: bool = False, padding_value: Union[float, int] = 0.0):
-    max_size = sequences[0].size()
-    trailing_dims = max_size[1:]
-    max_len = max([s.size(0) for s in sequences])
-    if batch_first:
-        out_dims = (len(sequences), max_len) + trailing_dims
-    else:
-        out_dims = (max_len, len(sequences)) + trailing_dims
+def read_csv(path):
+    print(f'Loading data file: {path}...')
+    with open(path, 'r') as f:
+        header = f.readline()
+        res = {}
+        while True:
+            line = f.readline()
+            if line is None or len(line.strip()) == 0:
+                break
+            line = line.split(',"')
+            date = line[0].strip()
+            try:
+                title = line[2][:-1]
+            except:
+                continue
+            if date in res:
+                res[date].append(title)
+            else:
+                res[date] = [title]
+    for date in res.keys():
+        tmp = list(set(res[date]))
+        tmp.sort(reverse=True, key=lambda x: len(x))
+        res[date] = tmp[:1000]
 
+    final = {"日期": [], "标题": [], "情感": []}
+    for date in res.keys():
+        for title in res[date]:
+            final['日期'].append(date)
+            final['标题'].append(title)
+            final['情感'].append('')
+    print(f'Loading finished. Total samples number: {len(final["日期"])}.')
+    return final
+
+
+def pad_sequence(sequences: List[torch.Tensor], batch_first: bool = True, padding_value: Union[float, int] = 0.0):
+    sequences = [sequences[i][0] for i in range(len(sequences))]
+    max_len = max([len(sequences[i]) for i in range(len(sequences))])
+    if batch_first:
+        out_dims = (len(sequences), max_len)
+    else:
+        out_dims = (max_len, len(sequences))
     out_tensor = sequences[0].new_full(out_dims, padding_value)
     for i, tensor in enumerate(sequences):
         length = tensor.size(0)
@@ -34,36 +66,40 @@ def batch_generate_response(model: GLMForConditionalGeneration, tokenizer: GLMTo
                             queries: List[str], device: str = 'cuda:0'):
     bs = len(queries)
     instruct_prompt = '上述文本的情感分类为（正面、负面或中立）：'
-    queries = tokenizer.batch_decode(
-        [queries[i].strip() + instruct_prompt for i in range(bs)],
+    queries = [tokenizer.encode(
+        queries[i].strip() + instruct_prompt,
         max_length=2048,
         truncation=True,
         add_special_tokens=True,
         return_tensors='pt'
-    )
+    ) for i in range(bs)]
 
     queries = pad_sequence(queries, batch_first=True).to(device)
-    generate_ids = model.generate(inputs=queries, max_new_tokens=5, do_sample=False)
-    total_res = tokenizer.batch_decode(generate_ids[:, queries.shape[1]], skip_special_tokens=True,
+    generate_ids = model.generate(inputs=queries, max_new_tokens=3, do_sample=False)
+    total_res = tokenizer.batch_decode(generate_ids[:, queries.shape[1]:], skip_special_tokens=True,
                                        clean_up_tokenization_spaces=False)
-    return [total_res[i].strip() for i in range(bs)]
+    return [total_res[i].strip()[:2] for i in range(bs)]
 
 
 def inference_file(model, tokenizer, src_path, dst_path, file_name):
-    df = pd.read_csv(os.path.join(src_path, file_name))
-    df_len = len(df['信息标题_InfoTitle'])
+    df = read_csv(os.path.join(src_path, file_name))
+    df_len = len(df['标题'])
     df['情感'] = [''] * df_len
     batch_size = 128
     start_idx = 0
     t0 = time.time()
     while start_idx < df_len:
-        inputs = df['信息标题_InfoTitle'][start_idx: start_idx + batch_size]
+        inputs = df['标题'][start_idx: start_idx + batch_size]
         df["情感"][start_idx: start_idx + batch_size] = batch_generate_response(model, tokenizer, queries=inputs)
         start_idx += batch_size
         if start_idx % (50 * batch_size) == 0:
-            df.to_csv(os.path.join(dst_path, file_name))
+            tmp_df = pd.DataFrame(df)
+            tmp_df.to_csv(os.path.join(dst_path, file_name))
             print('Processing: {} / {}. Time: {:.2f}s'.format(start_idx, df_len, time.time() - t0))
             t0 = time.time()
+    tmp_df = pd.DataFrame(df)
+    tmp_df.to_csv(os.path.join(dst_path, file_name))
+    print('Processing: {} / {}. Time: {:.2f}s'.format(start_idx, df_len, time.time() - t0))
 
 
 if __name__ == '__main__':
@@ -107,6 +143,6 @@ if __name__ == '__main__':
     model.eval()
 
     with torch.no_grad():
-        for f in files:
+        for file in files:
             inference_file(model=model, tokenizer=tokenizer, src_path=inference_data_path,
-                           dst_path=output_data_path, file_name=f)
+                           dst_path=output_data_path, file_name=file)
